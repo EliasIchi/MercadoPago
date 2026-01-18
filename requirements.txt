@@ -1,3 +1,5 @@
 fastapi
 uvicorn
 mercadopago
+streamlit
+requests
