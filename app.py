@@ -1,92 +1,83 @@
 import streamlit as st
 import requests
+from streamlit_autorefresh import st_autorefresh
 
-# -------------------------
-# Config Backend
-# -------------------------
 BACKEND_URL = "https://mp-backend-4l3x.onrender.com"
 
 st.set_page_config(page_title="Cobro con QR", layout="centered")
 st.title("📲 Cobro con QR Mercado Pago")
 
 # -------------------------
-# Inicializar session_state
+# Session state
 # -------------------------
 for key in ["init_point", "ref", "monto"]:
     if key not in st.session_state:
         st.session_state[key] = None
 
 # -------------------------
-# Input de monto
+# Monto
 # -------------------------
 monto = st.number_input("Monto a cobrar", min_value=1, step=100, format="%d")
 st.session_state["monto"] = monto
 
 # -------------------------
-# -------------------------
-# Generar QR con depuración
+# Generar QR
 # -------------------------
 if st.button("Generar QR"):
-    monto = st.session_state["monto"]
-    
-    if not monto or monto <= 0:
-        st.error("❌ Ingresa un monto válido mayor a 0")
+    if monto <= 0:
+        st.error("❌ Monto inválido")
     else:
-   #     try:
-        try:
-            r = requests.get(
-                f"{BACKEND_URL}/estado/{st.session_state['ref']}",
-                timeout=5
-            )
-        
-            if r.status_code != 200:
-                st.info("⏳ Esperando confirmación del pago...")
-            else:
-                estado = r.json()
-                status = estado.get("status", "pending")
-        
-                if status == "approved":
-                    st.success("✅ PAGO APROBADO")
-                    st.code(f"Transacción: {estado.get('transaction_id')}")
-        
-                elif status == "rejected":
-                    st.error("❌ PAGO RECHAZADO")
-                else:
-                    st.info("⏳ Esperando pago...")
+        r = requests.post(
+            f"{BACKEND_URL}/crear_qr",
+            json={"monto": monto},
+            timeout=5
+        )
 
-except Exception as e:
-    st.error(f"❌ Error consultando estado: {e}")
-
+        if r.status_code == 200:
+            data = r.json()
+            st.session_state["init_point"] = data["init_point"]
+            st.session_state["ref"] = data["external_reference"]
+            st.success("✅ QR generado")
+        else:
+            st.error("❌ Error generando QR")
 
 # -------------------------
-# Auto-refresh cada 3 segundos
+# Auto refresh si hay ref
 # -------------------------
 if st.session_state["ref"]:
-    from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=3000, limit=None, key="polling")
+    st_autorefresh(interval=3000, key="polling")
 
 # -------------------------
-# Mostrar QR y estado
+# Mostrar QR + estado
 # -------------------------
 if st.session_state["init_point"]:
     st.subheader("Escaneá para pagar")
-    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={st.session_state['init_point']}"
+
+    qr_url = (
+        "https://api.qrserver.com/v1/create-qr-code/"
+        f"?size=300x300&data={st.session_state['init_point']}"
+    )
     st.image(qr_url)
 
     try:
-        estado = requests.get(
-            f"{BACKEND_URL}/estado_qr/{st.session_state['ref']}"
-        ).json()
+        r = requests.get(
+            f"{BACKEND_URL}/estado/{st.session_state['ref']}",
+            timeout=5
+        )
 
-        status = estado.get("status", "pending")
-        if status == "approved":
-            st.success("✅ PAGO APROBADO")
-            st.code(f"Transacción: {estado.get('transaction_id')}")
-            
-        elif status == "rejected":
-            st.error("❌ PAGO RECHAZADO")
+        if r.status_code == 200:
+            estado = r.json()
+            status = estado.get("status", "pending")
+
+            if status == "approved":
+                st.success("✅ PAGO APROBADO")
+                st.code(f"Transacción: {estado.get('transaction_id')}")
+            elif status == "rejected":
+                st.error("❌ PAGO RECHAZADO")
+            else:
+                st.info("⏳ Esperando pago...")
         else:
-            st.info("⏳ Esperando pago...")
+            st.info("⏳ Esperando confirmación...")
 
     except Exception as e:
         st.error(f"❌ Error consultando estado: {e}")
