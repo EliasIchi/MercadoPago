@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 import mercadopago
 import uuid
 
-MP_ACCESS_TOKEN = "APP_USR-06aede4f-e063-40ca-92cf-f8bb06438e4c"
+MP_ACCESS_TOKEN = "APP_USR-1554767517582736-011922-6d5db8152ee5ca891ebd1594293be76d-145557542"
 
 sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 app = FastAPI()
