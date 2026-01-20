@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import time
+from streamlit_autorefresh import st_autorefresh
 
 # -------------------------
 # CONFIG BACKEND
