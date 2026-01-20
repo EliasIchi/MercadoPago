@@ -1,34 +1,44 @@
-# backend_debug.py
-
-import uuid, os
+import uuid
+import os
 from fastapi import FastAPI, Request
 import mercadopago
+from datetime import datetime
 
-# -----------------------------
-# TOKEN de MP desde variables de entorno
-# -----------------------------
+# =============================
+# CONFIG
+# =============================
 MP_ACCESS_TOKEN = os.environ.get("MP_ACCESS_TOKEN")
 if not MP_ACCESS_TOKEN:
     raise Exception("No se encontró MP_ACCESS_TOKEN")
 
+BACKEND_URL = os.environ.get(
+    "BACKEND_URL",
+    "https://mp-backend-4l3x.onrender.com"
+)
+
 sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
-app = FastAPI(title="Backend Mercado Pago DEBUG")
+app = FastAPI(title="Backend Mercado Pago")
 
-# -----------------------------
-# Diccionario temporal de pagos (simula la DB)
-# -----------------------------
-pagos = {}  # key = external_reference o id de MP
+# =============================
+# "DB" EN MEMORIA (REEMPLAZABLE)
+# =============================
+pagos = {}
+# pagos[ref] = {
+#   status, monto, payment_id,
+#   transaction_id, payment_type,
+#   notificado, fecha, full_info
+# }
 
-# -----------------------------
-# HEALTH CHECK
-# -----------------------------
+# =============================
+# HEALTH
+# =============================
 @app.get("/")
 def health():
     return {"status": "ok"}
 
-# -----------------------------
-# CREAR QR / PREFERENCIA (POST)
-# -----------------------------
+# =============================
+# CREAR QR
+# =============================
 @app.post("/crear_qr")
 def crear_qr(data: dict):
     monto = float(data.get("monto", 0))
@@ -36,48 +46,55 @@ def crear_qr(data: dict):
         return {"error": "Monto inválido"}
 
     ref = str(uuid.uuid4())
-    base_url = os.environ.get("BACKEND_URL", "https://mp-backend-4l3x.onrender.com")
-    notification_url = f"{base_url.rstrip('/')}/webhook"
 
     pref = sdk.preference().create({
-        "items": [{"title": "Cobro", "quantity": 1, "unit_price": monto}],
+        "items": [
+            {
+                "title": "Cobro",
+                "quantity": 1,
+                "unit_price": monto
+            }
+        ],
         "external_reference": ref,
-        "notification_url": notification_url
+        "notification_url": f"{BACKEND_URL}/webhook"
     })
 
-    # Guardar pago pendiente
     pagos[ref] = {
         "status": "pending",
+        "monto": monto,
         "payment_id": None,
         "transaction_id": None,
-        "full_info": pref  # Guardamos toda la info de la preferencia
+        "payment_type": None,
+        "notificado": False,
+        "fecha": datetime.now().isoformat(),
+        "full_info": pref
     }
 
-    # DEBUG
-    print("📡 /crear_qr llamado")
-    print("Monto:", monto)
-    print("Referencia:", ref)
-    print("Respuesta MP completa:", pref)
+    print("📡 QR creado:", ref, "Monto:", monto)
 
-    return {"init_point": pref["response"]["init_point"],
-            "external_reference": ref,
-            "full_response": pref}
+    return {
+        "init_point": pref["response"]["init_point"],
+        "external_reference": ref
+    }
 
-# -----------------------------
-# WEBHOOK DE MERCADO PAGO (POST)
-# -----------------------------
+# =============================
+# WEBHOOK MP
+# =============================
 @app.post("/webhook")
 async def webhook(request: Request):
-    try: data = await request.json()
-    except: data = {}
+    # responder rápido
+    response = {"ok": True}
+
+    try:
+        data = await request.json()
+    except:
+        data = {}
 
     query = dict(request.query_params)
-    print("📬 /webhook recibido")
-    print("Query params:", query)
-    print("Body:", data)
-
     topic = query.get("topic")
     mp_id = query.get("id")
+
+    print("📬 Webhook recibido:", query)
 
     if topic == "payment" and mp_id:
         pago_info = sdk.payment().get(mp_id)["response"]
@@ -85,59 +102,85 @@ async def webhook(request: Request):
 
         pagos[ref] = {
             "status": pago_info.get("status"),
+            "monto": pago_info.get("transaction_amount"),
             "payment_id": str(mp_id),
-            "transaction_id": pago_info.get("transaction_details", {}).get("transaction_id"),
+            "transaction_id": pago_info.get(
+                "transaction_details", {}
+            ).get("transaction_id"),
             "payment_type": pago_info.get("payment_type_id"),
-            "full_info": pago_info  # Guardamos todo lo que trae MP
+            "notificado": False,
+            "fecha": pago_info.get("date_created"),
+            "full_info": pago_info
         }
 
-        print(f"✅ Pago actualizado: {ref}")
-        print("Info completa del pago:", pago_info)
+        print("✅ Pago actualizado:", ref, pagos[ref]["status"])
 
-    print("📊 Pagos actuales en memoria:", pagos)
-    return {"ok": True, "query": query, "body": data}
+    return response
 
-# -----------------------------
-# CONSULTAR ESTADO DE UN PAGO (GET)
-# -----------------------------
+# =============================
+# ESTADO DE UN PAGO
+# =============================
 @app.get("/estado/{ref}")
-def estado(ref: str):
+def estado_pago(ref: str):
     pago = pagos.get(ref)
-    print(f"🔎 /estado llamado para ref={ref}")
-    print("Pago encontrado:", pago)
     if not pago:
         return {"status": "not_found"}
     return pago
 
-# -----------------------------
-# SINCRONIZAR PAGOS MANUAL (GET)
-# -----------------------------
+# =============================
+# POLLING PRO (POS)
+# =============================
+@app.get("/pagos_pendientes_popup")
+def pagos_pendientes_popup():
+    """
+    Devuelve SOLO pagos aprobados
+    que todavía no fueron notificados
+    """
+    nuevos = []
+
+    for ref, pago in pagos.items():
+        if pago["status"] == "approved" and not pago["notificado"]:
+            pago["notificado"] = True
+            nuevos.append({
+                "referencia": ref,
+                "monto": pago["monto"],
+                "tipo": pago["payment_type"],
+                "fecha": pago["fecha"]
+            })
+
+    print(f"🔔 Pagos nuevos para popup: {len(nuevos)}")
+    return nuevos
+
+# =============================
+# BACKUP MANUAL (POR SI FALLA WEBHOOK)
+# =============================
 @app.get("/sync_pagos")
 def sync_pagos():
     try:
-        result = sdk.payment().search({"limit": 100, "sort": "date_created", "criteria": "desc"})
-        pagos_mp = result["response"]["results"]
+        result = sdk.payment().search({
+            "limit": 50,
+            "sort": "date_created",
+            "criteria": "desc"
+        })
 
-        for pago in pagos_mp:
-            ref = pago.get("external_reference") or str(pago.get("id"))
-            pagos[ref] = {
-                "status": pago.get("status"),
-                "payment_id": str(pago.get("id")),
-                "transaction_id": pago.get("transaction_details", {}).get("transaction_id"),
-                "payment_type": pago.get("payment_type_id"),
-                "full_info": pago
-            }
+        for pago in result["response"]["results"]:
+            ref = pago.get("external_reference") or str(pago["id"])
 
-        print(f"🔄 /sync_pagos completado: {len(pagos_mp)} pagos traídos")
-        return {"ok": True, "pagos_sync": len(pagos_mp), "full_list": pagos_mp}
+            if ref not in pagos:
+                pagos[ref] = {
+                    "status": pago.get("status"),
+                    "monto": pago.get("transaction_amount"),
+                    "payment_id": str(pago["id"]),
+                    "transaction_id": pago.get(
+                        "transaction_details", {}
+                    ).get("transaction_id"),
+                    "payment_type": pago.get("payment_type_id"),
+                    "notificado": False,
+                    "fecha": pago.get("date_created"),
+                    "full_info": pago
+                }
+
+        return {"ok": True, "total": len(pagos)}
+
     except Exception as e:
-        print("❌ Error en /sync_pagos:", e)
         return {"error": str(e)}
-
-# -----------------------------
-# LISTAR TODOS LOS PAGOS EN MEMORIA (GET)
-# -----------------------------
-@app.get("/pagos_nuevos")
-def pagos_nuevos():
-    print("📃 /pagos_nuevos llamado")
-    return list(pagos.values())
