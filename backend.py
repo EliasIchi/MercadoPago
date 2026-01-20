@@ -171,22 +171,14 @@ def pagos_pendientes_popup():
 
 @app.get("/estado_qr/{external_reference}")
 def estado_qr(external_reference: str):
-    pago = buscar_pago_qr(external_reference)
-
-    if not pago:
-        return {"status": "pending"}
-
-    if pago["status"] == "approved":
-        marcar_visto_qr(pago["id"])
-        return {
-            "status": "approved",
-            "transaction_id": pago["mp_payment_id"]
-        }
-
-    if pago["status"] == "rejected":
-        marcar_visto_qr(pago["id"])
-        return {"status": "rejected"}
+    for p in pagos.values():
+        if p.get("referencia") == external_reference:
+            if p["status"] == "approved":
+                return {
+                    "status": "approved",
+                    "transaction_id": p["mp_payment_id"]
+                }
+            if p["status"] == "rejected":
+                return {"status": "rejected"}
 
     return {"status": "pending"}
-
-
