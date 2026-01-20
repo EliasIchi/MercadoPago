@@ -152,19 +152,22 @@ def obtener_pagos():
 
 
 @app.get("/pagos_pendientes_popup")
+@app.get("/pagos_pendientes_popup")
 def pagos_pendientes_popup():
     pendientes = []
 
-    for ref, p in pagos.items():
+    for payment_id, p in pagos.items():
         if p.get("status") == "approved" and not p.get("popup_mostrado"):
             p["popup_mostrado"] = True
             pendientes.append({
+                "mp_payment_id": p.get("mp_payment_id"),   # ✅ CLAVE
                 "monto": p.get("monto"),
-                "tipo": p.get("payment_type") or p.get("tipo"),
-                "referencia": ref
+                "tipo": p.get("tipo"),
+                "referencia": p.get("referencia"),
             })
 
     return pendientes
+
 
 @app.get("/estado_qr/{external_reference}")
 def estado_qr(external_reference: str):
