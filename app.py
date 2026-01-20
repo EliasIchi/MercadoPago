@@ -84,11 +84,11 @@ if st.session_state["init_point"]:
             f"{BACKEND_URL}/estado_qr/{st.session_state['ref']}"
         ).json()
 
-
+        status = estado.get("status", "pending")
         if status == "approved":
             st.success("✅ PAGO APROBADO")
             st.code(f"Transacción: {estado.get('transaction_id')}")
-
+            
         elif status == "rejected":
             st.error("❌ PAGO RECHAZADO")
         else:
