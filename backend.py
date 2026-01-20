@@ -94,6 +94,25 @@ async def webhook(request: Request):
 @app.get("/estado/{ref}")
 def estado(ref: str):
     return pagos.get(ref, {"status": "not_found"})
+@app.get("/sync_pagos")
+def sync_pagos():
+    """
+    Trae los últimos pagos de MP (transferencias, cobros, etc.)
+    y los guarda en nuestro diccionario temporal.
+    """
+    try:
+        result = sdk.payment().search({"limit": 50, "sort": "date_created", "criteria": "desc"})
+        pagos_mp = result["response"]["results"]
+        for pago in pagos_mp:
+            ref = pago.get("external_reference") or str(pago.get("id"))
+            pagos[ref] = {
+                "status": pago.get("status"),
+                "payment_id": str(pago.get("id")),
+                "transaction_id": pago.get("transaction_details", {}).get("transaction_id")
+            }
+        return {"ok": True, "pagos_sync": len(pagos_mp)}
+    except Exception as e:
+        return {"error": str(e)}
 
 # -----------------------------
 # EJECUTAR SERVIDOR (Render)
