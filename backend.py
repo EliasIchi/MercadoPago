@@ -63,19 +63,29 @@ def crear_qr(data: dict):
 # -----------------------------
 # WEBHOOK DE MERCADO PAGO
 # -----------------------------
+# WEBHOOK DE MERCADO PAGO (debug + actualización)
+# -----------------------------
 @app.post("/webhook")
 async def webhook(request: Request):
     """
-    Endpoint que recibe notificaciones de MP (cualquier tipo: payment, transfer, QR, propina, etc.)
+    Endpoint que recibe notificaciones de MP (payment, QR, transfer, etc.)
+    Debug incluido: imprime todo lo que llega.
     """
+    # Leer JSON
     try:
         data = await request.json()
     except:
         data = {}
 
+    # Debug completo
+    print("📬 Webhook recibido:")
+    print("Query params:", dict(request.query_params))
+    print("Body:", data)
+
     topic = request.query_params.get("topic")
     mp_id = request.query_params.get("id")
 
+    # Actualizamos solo si es un pago real
     if topic == "payment" and mp_id:
         pago_info = sdk.payment().get(mp_id)["response"]
         ref = pago_info.get("external_reference") or str(mp_id)
@@ -87,37 +97,12 @@ async def webhook(request: Request):
             "payment_type": pago_info.get("payment_type_id")
         }
 
-        print(f"✅ Webhook recibido: {ref} ({pago_info.get('status')})")
+        print(f"✅ Pago actualizado: {ref} | Status: {pago_info.get('status')}")
+
+    # Log completo de todos los pagos en memoria
+    print("📊 Pagos actuales en memoria:", pagos)
 
     return {"ok": True}
-
-# -----------------------------
-# DEBUG: GET a webhook solo para test / browser
-# -----------------------------
-@app.get("/webhook")
-def webhook_get():
-    """
-    Para debug, si alguien hace GET al webhook
-    """
-    print("ℹ️ GET /webhook llamado (solo debug)")
-    return {"ok": True, "msg": "Este endpoint solo acepta POST de MP"}
-
-# -----------------------------
-# CONSULTAR ESTADO DE UN PAGO
-# -----------------------------
-@app.get("/estado/{ref}")
-def estado(ref: str):
-    return pagos.get(ref, {"status": "not_found"})
-
-# -----------------------------
-# OBTENER TODOS LOS PAGOS NUEVOS (para POS)
-# -----------------------------
-@app.get("/api/pagos/nuevos")
-def pagos_nuevos():
-    """
-    Devuelve todos los pagos registrados para que tu POS los consulte periódicamente
-    """
-    return list(pagos.values())
 
 # -----------------------------
 # SINCRONIZAR PAGOS MP MANUAL
