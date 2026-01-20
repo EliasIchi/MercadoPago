@@ -43,7 +43,7 @@ def crear_qr(data: dict):
 
     ref = str(uuid.uuid4())
 
-    notification_url = os.environ.get("BACKEND_URL", "https://TU_RENDER_URL") + "/webhook"
+    notification_url = os.environ.get("BACKEND_URL", "https://mp-backend-4l3x.onrender.com/") + "/webhook"
     print("📡 Notification URL enviada a MP:", notification_url)
 
     pref = sdk.preference().create({
