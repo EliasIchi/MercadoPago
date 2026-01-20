@@ -1,22 +1,30 @@
-
-# ================= CONFIG =================
-
-import streamlit as st
-import mercadopago
-import time
-import requests
-
-MP_ACCESS_TOKEN = "APP_USR-5249994394996474-011214-398ad97c27842a3a4d81a9bd045f32fb-145557542"
-BACKEND_URL = "https://mp-backend-4l3x.onrender.com"
 import streamlit as st
 import requests
 import time
 
+# -------------------------
+# CONFIG BACKEND
+# -------------------------
 BACKEND_URL = "https://mp-backend-4l3x.onrender.com"
 
 st.set_page_config(page_title="Cobro con QR", layout="centered")
 st.title("📲 Cobro con QR Mercado Pago")
 
+# -------------------------
+# INICIALIZAR SESSION_STATE
+# -------------------------
+if "init_point" not in st.session_state:
+    st.session_state["init_point"] = None
+
+if "ref" not in st.session_state:
+    st.session_state["ref"] = None
+
+if "monto" not in st.session_state:
+    st.session_state["monto"] = 0
+
+# -------------------------
+# INGRESO DE MONTO
+# -------------------------
 monto = st.number_input(
     "Monto a cobrar",
     min_value=1,
@@ -24,23 +32,31 @@ monto = st.number_input(
     format="%d"
 )
 
+st.session_state["monto"] = monto
+
 # -------------------------
 # GENERAR QR
 # -------------------------
 if st.button("Generar QR"):
-    r = requests.post(
-        f"{BACKEND_URL}/crear_qr",
-        json={"monto": monto}
-    )
-    data = r.json()
+    try:
+        r = requests.post(
+            f"{BACKEND_URL}/crear_qr",
+            json={"monto": st.session_state["monto"]}
+        )
+        data = r.json()
 
-    st.session_state["init_point"] = data["init_point"]
-    st.session_state["ref"] = data["external_reference"]
+        st.session_state["init_point"] = data.get("init_point")
+        st.session_state["ref"] = data.get("external_reference")
+
+        st.success("✅ QR generado correctamente")
+
+    except Exception as e:
+        st.error(f"❌ Error generando QR: {e}")
 
 # -------------------------
-# MOSTRAR QR Y ESPERAR
+# MOSTRAR QR Y CONSULTAR ESTADO
 # -------------------------
-if "init_point" in st.session_state:
+if st.session_state["init_point"]:
     st.subheader("Escaneá para pagar")
 
     qr_url = (
@@ -49,18 +65,26 @@ if "init_point" in st.session_state:
     )
     st.image(qr_url)
 
-    estado = requests.get(
-        f"{BACKEND_URL}/estado/{st.session_state['ref']}"
-    ).json()
+    if st.session_state["ref"]:
+        try:
+            estado = requests.get(
+                f"{BACKEND_URL}/estado/{st.session_state['ref']}"
+            ).json()
 
-    if estado["status"] == "approved":
-        st.success("✅ PAGO APROBADO")
-        st.code(f"Transacción: {estado['transaction_id']}")
+            status = estado.get("status", "pending")
 
-    elif estado["status"] == "rejected":
-        st.error("❌ PAGO RECHAZADO")
+            if status == "approved":
+                st.success("✅ PAGO APROBADO")
+                st.code(f"Transacción: {estado.get('transaction_id')}")
 
-    else:
-        st.warning("⏳ Esperando pago...")
-        time.sleep(3)
-        st.rerun()
+            elif status == "rejected":
+                st.error("❌ PAGO RECHAZADO")
+
+            else:
+                st.warning("⏳ Esperando pago...")
+                # Refresca la página automáticamente para actualizar estado
+                time.sleep(3)
+                st.experimental_rerun()
+
+        except Exception as e:
+            st.error(f"❌ Error consultando estado: {e}")
