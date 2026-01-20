@@ -78,4 +78,5 @@ if st.session_state["init_point"]:
                 st.info("⏳ Esperando pago...")
         else:
             st.info("⏳ Esperando confirmación...")
-
+    except Exception as e:
+        st.warning("⏳ Aún no hay confirmación del pago")
