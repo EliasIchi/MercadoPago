@@ -3,3 +3,4 @@ uvicorn
 mercadopago
 streamlit
 requests
+streamlit-autorefresh
