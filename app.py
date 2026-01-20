@@ -78,3 +78,4 @@ if st.session_state["init_point"]:
                 st.info("⏳ Esperando pago...")
         else:
             st.info("⏳ Esperando confirmación...")
+
