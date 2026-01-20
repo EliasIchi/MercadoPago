@@ -149,19 +149,21 @@ def obtener_pagos():
 # =============================
 # PARA POPUPS DEL POS
 # =============================
+
+
 @app.get("/pagos_pendientes_popup")
 def pagos_pendientes_popup():
     pendientes = []
 
-    for p in pagos.values():
-        if p["status"] == "approved" and not p["popup_mostrado"]:
+    for ref, p in pagos.items():
+        if p.get("status") == "approved" and not p.get("popup_mostrado"):
             p["popup_mostrado"] = True
             pendientes.append({
-                "mp_payment_id": p["mp_payment_id"],
-                "monto": p["monto"],
-                "tipo": p["tipo"],
-                "referencia": p["referencia"]
+                "monto": p.get("monto"),
+                "tipo": p.get("payment_type") or p.get("tipo"),
+                "referencia": ref
             })
 
     return pendientes
+
 
