@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import time
-from streamlit_autorefresh import st_autorefresh
 
 # -------------------------
 # CONFIG BACKEND
@@ -14,14 +13,9 @@ st.title("📲 Cobro con QR Mercado Pago")
 # -------------------------
 # INICIALIZAR SESSION_STATE
 # -------------------------
-if "init_point" not in st.session_state:
-    st.session_state["init_point"] = None
-
-if "ref" not in st.session_state:
-    st.session_state["ref"] = None
-
-if "monto" not in st.session_state:
-    st.session_state["monto"] = 0
+for key in ["init_point", "ref", "monto"]:
+    if key not in st.session_state:
+        st.session_state[key] = None
 
 # -------------------------
 # INGRESO DE MONTO
@@ -32,7 +26,6 @@ monto = st.number_input(
     step=100,
     format="%d"
 )
-
 st.session_state["monto"] = monto
 
 # -------------------------
@@ -48,7 +41,6 @@ if st.button("Generar QR"):
 
         st.session_state["init_point"] = data.get("init_point")
         st.session_state["ref"] = data.get("external_reference")
-
         st.success("✅ QR generado correctamente")
 
     except Exception as e:
@@ -57,7 +49,7 @@ if st.button("Generar QR"):
 # -------------------------
 # MOSTRAR QR Y CONSULTAR ESTADO
 # -------------------------
-if st.session_state["init_point"]:
+if st.session_state["init_point"] and st.session_state["ref"]:
     st.subheader("Escaneá para pagar")
 
     qr_url = (
@@ -66,26 +58,28 @@ if st.session_state["init_point"]:
     )
     st.image(qr_url)
 
-    if st.session_state["ref"]:
+    # Polling seguro: loop limitado con timeout
+    max_checks = 20  # chequea 20 veces (~60 seg)
+    for i in range(max_checks):
         try:
             estado = requests.get(
                 f"{BACKEND_URL}/estado/{st.session_state['ref']}"
             ).json()
-
             status = estado.get("status", "pending")
 
             if status == "approved":
                 st.success("✅ PAGO APROBADO")
                 st.code(f"Transacción: {estado.get('transaction_id')}")
+                break
 
             elif status == "rejected":
                 st.error("❌ PAGO RECHAZADO")
+                break
 
             else:
                 st.warning("⏳ Esperando pago...")
-                # Refresca la página automáticamente para actualizar estado
-                time.sleep(3)
-                st.experimental_rerun()
+                time.sleep(3)  # espera 3 segundos antes de consultar nuevamente
 
         except Exception as e:
             st.error(f"❌ Error consultando estado: {e}")
+            break
