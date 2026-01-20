@@ -157,9 +157,11 @@ def pagos_pendientes_popup():
         if p["status"] == "approved" and not p["popup_mostrado"]:
             p["popup_mostrado"] = True
             pendientes.append({
+                "mp_payment_id": p["mp_payment_id"],
                 "monto": p["monto"],
                 "tipo": p["tipo"],
                 "referencia": p["referencia"]
             })
 
     return pendientes
+
