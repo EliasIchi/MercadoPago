@@ -87,6 +87,17 @@ async def webhook(request: Request):
         print(f"✅ Webhook recibido: {ref} ({pago_info.get('status')})")
 
     return {"ok": True}
+# -----------------------------
+# WEBHOOK DE MERCADO PAGO (GET para debug)
+# -----------------------------
+@app.get("/webhook")
+def webhook_get():
+    """
+    Solo logging/debug. NO procesa pagos.
+    Sirve para ver quién está haciendo GET en /webhook.
+    """
+    print("⚠️ GET recibido en /webhook - no se procesa pago")
+    return {"ok": True, "msg": "Este endpoint solo acepta POST para webhooks"}
 
 # -----------------------------
 # CONSULTAR ESTADO DE UN PAGO
