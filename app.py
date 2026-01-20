@@ -23,17 +23,46 @@ monto = st.number_input("Monto a cobrar", min_value=1, step=100, format="%d")
 st.session_state["monto"] = monto
 
 # -------------------------
-# Generar QR
+# -------------------------
+# Generar QR con depuración
 # -------------------------
 if st.button("Generar QR"):
-    try:
-        r = requests.post(f"{BACKEND_URL}/crear_qr", json={"monto": st.session_state["monto"]})
-        data = r.json()
-        st.session_state["init_point"] = data.get("init_point")
-        st.session_state["ref"] = data.get("external_reference")
-        st.success("✅ QR generado correctamente")
-    except Exception as e:
-        st.error(f"❌ Error generando QR: {e}")
+    monto = st.session_state["monto"]
+    
+    if not monto or monto <= 0:
+        st.error("❌ Ingresa un monto válido mayor a 0")
+    else:
+        try:
+            st.info("⌛ Generando QR, espera un momento...")
+            r = requests.post(f"{BACKEND_URL}/crear_qr", json={"monto": monto})
+            
+            # Mostrar status code y texto crudo para depuración
+            st.write("Status code:", r.status_code)
+            st.write("Respuesta cruda:", r.text)
+
+            r.raise_for_status()  # Esto lanza error si status != 200
+            data = r.json()
+            
+            # Validar que el backend devuelva lo que esperamos
+            init_point = data.get("init_point")
+            ref = data.get("external_reference")
+            
+            if init_point and ref:
+                st.session_state["init_point"] = init_point
+                st.session_state["ref"] = ref
+                st.success("✅ QR generado correctamente")
+                st.write("Init Point:", init_point)
+                st.write("Referencia externa:", ref)
+            else:
+                st.error("❌ El backend no devolvió 'init_point' o 'external_reference'.")
+                st.write("JSON recibido:", data)
+
+        except requests.exceptions.RequestException as e:
+            st.error(f"❌ Error generando QR: {e}")
+            if r is not None:
+                st.write("Respuesta cruda:", r.text)
+        except Exception as e:
+            st.error(f"❌ Error inesperado: {e}")
 
 # -------------------------
 # Auto-refresh cada 3 segundos
