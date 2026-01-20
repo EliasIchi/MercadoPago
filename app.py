@@ -80,8 +80,10 @@ if st.session_state["init_point"]:
     st.image(qr_url)
 
     try:
-        estado = requests.get(f"{BACKEND_URL}/estado/{st.session_state['ref']}").json()
-        status = estado.get("status", "pending")
+        estado = requests.get(
+            f"{BACKEND_URL}/estado_qr/{st.session_state['ref']}"
+        ).json()
+
 
         if status == "approved":
             st.success("✅ PAGO APROBADO")
