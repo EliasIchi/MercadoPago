@@ -14,16 +14,25 @@ ultimo_pago = {
 
 @app.post("/webhook")
 async def webhook(request: Request):
-    data = await request.json()
-    print("WEBHOOK:", data)  # 🔍 LOG
+    # 1️⃣ Query params (FORMA CORRECTA)
+    payment_id = request.query_params.get("id")
+    topic = request.query_params.get("topic")
 
-    payment_id = None
+    print("QUERY:", request.query_params)
 
-    # caso 1
-    if "data" in data and "id" in data["data"]:
-        payment_id = data["data"]["id"]
+    # 2️⃣ Intentar leer JSON (si viene)
+    try:
+        body = await request.json()
+        print("BODY:", body)
 
-    if payment_id:
+        if not payment_id:
+            payment_id = body.get("data", {}).get("id")
+
+    except:
+        body = None
+
+    # 3️⃣ Procesar solo pagos
+    if topic == "payment" and payment_id:
         pago = sdk.payment().get(payment_id)["response"]
 
         ultimo_pago["status"] = pago["status"]
@@ -33,9 +42,7 @@ async def webhook(request: Request):
                 .get("transaction_id")
         )
 
+        print("PAGO ACTUALIZADO:", ultimo_pago)
+
+    # 4️⃣ RESPUESTA RÁPIDA (CLAVE)
     return {"ok": True}
-
-
-@app.get("/estado")
-def estado():
-    return ultimo_pago
