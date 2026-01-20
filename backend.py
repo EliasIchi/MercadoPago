@@ -1,3 +1,5 @@
+# backend.py
+
 import uuid
 import os
 from fastapi import FastAPI, Request
@@ -10,12 +12,13 @@ MP_ACCESS_TOKEN = os.environ.get("MP_ACCESS_TOKEN")
 if not MP_ACCESS_TOKEN:
     raise Exception("No se encontró la variable de entorno MP_ACCESS_TOKEN")
 
+# SDK de Mercado Pago
 sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 
 # -----------------------------
 # APP FASTAPI
 # -----------------------------
-app = FastAPI()
+app = FastAPI(title="Backend Mercado Pago")
 
 # -----------------------------
 # Diccionario temporal de pagos (simula la BD)
@@ -40,12 +43,13 @@ def crear_qr(data: dict):
 
     ref = str(uuid.uuid4())
 
+    notification_url = os.environ.get("BACKEND_URL", "https://TU_RENDER_URL") + "/webhook"
+    print("📡 Notification URL enviada a MP:", notification_url)
+
     pref = sdk.preference().create({
         "items": [{"title": "Cobro", "quantity": 1, "unit_price": monto}],
         "external_reference": ref,
-        "notification_url": os.environ.get(
-            "BACKEND_URL", "https://TU_RENDER_URL"
-        ) + "/webhook"
+        "notification_url": notification_url
     })
 
     # Guardar pago pendiente
@@ -62,7 +66,7 @@ def crear_qr(data: dict):
 @app.post("/webhook")
 async def webhook(request: Request):
     """
-    Endpoint que recibe notificaciones de MP (cualquier tipo: payment, transfer, etc.)
+    Endpoint que recibe notificaciones de MP (cualquier tipo: payment, transfer, QR, propina, etc.)
     """
     try:
         data = await request.json()
@@ -72,7 +76,6 @@ async def webhook(request: Request):
     topic = request.query_params.get("topic")
     mp_id = request.query_params.get("id")
 
-    # Si es un pago, traemos info completa
     if topic == "payment" and mp_id:
         pago_info = sdk.payment().get(mp_id)["response"]
         ref = pago_info.get("external_reference") or str(mp_id)
@@ -87,17 +90,17 @@ async def webhook(request: Request):
         print(f"✅ Webhook recibido: {ref} ({pago_info.get('status')})")
 
     return {"ok": True}
+
 # -----------------------------
-# WEBHOOK DE MERCADO PAGO (GET para debug)
+# DEBUG: GET a webhook solo para test / browser
 # -----------------------------
 @app.get("/webhook")
 def webhook_get():
     """
-    Solo logging/debug. NO procesa pagos.
-    Sirve para ver quién está haciendo GET en /webhook.
+    Para debug, si alguien hace GET al webhook
     """
-    print("⚠️ GET recibido en /webhook - no se procesa pago")
-    return {"ok": True, "msg": "Este endpoint solo acepta POST para webhooks"}
+    print("ℹ️ GET /webhook llamado (solo debug)")
+    return {"ok": True, "msg": "Este endpoint solo acepta POST de MP"}
 
 # -----------------------------
 # CONSULTAR ESTADO DE UN PAGO
@@ -107,7 +110,7 @@ def estado(ref: str):
     return pagos.get(ref, {"status": "not_found"})
 
 # -----------------------------
-# OBTENER PAGOS NUEVOS (para tu POS)
+# OBTENER TODOS LOS PAGOS NUEVOS (para POS)
 # -----------------------------
 @app.get("/api/pagos/nuevos")
 def pagos_nuevos():
@@ -141,13 +144,15 @@ def sync_pagos():
                 "payment_type": pago.get("payment_type_id")
             }
 
+        print(f"🔄 Sincronización completada: {len(pagos_mp)} pagos traídos")
         return {"ok": True, "pagos_sync": len(pagos_mp)}
 
     except Exception as e:
+        print("❌ Error sync_pagos:", e)
         return {"error": str(e)}
 
 # -----------------------------
-# EJECUTAR SERVIDOR
+# EJECUTAR SERVIDOR (Render)
 # -----------------------------
 if __name__ == "__main__":
     import uvicorn
