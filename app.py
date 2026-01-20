@@ -61,14 +61,14 @@ if st.session_state["init_point"]:
 
     try:
         r = requests.get(
-            f"{BACKEND_URL}/estado/{st.session_state['ref']}",
+            f"{BACKEND_URL}/estado_qr/{st.session_state['ref']}",
             timeout=5
         )
-
+        
         if r.status_code == 200:
             estado = r.json()
             status = estado.get("status", "pending")
-
+        
             if status == "approved":
                 st.success("✅ PAGO APROBADO")
                 st.code(f"Transacción: {estado.get('transaction_id')}")
@@ -78,6 +78,3 @@ if st.session_state["init_point"]:
                 st.info("⏳ Esperando pago...")
         else:
             st.info("⏳ Esperando confirmación...")
-
-    except Exception as e:
-        st.error(f"❌ Error consultando estado: {e}")
