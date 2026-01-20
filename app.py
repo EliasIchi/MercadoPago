@@ -32,37 +32,31 @@ if st.button("Generar QR"):
     if not monto or monto <= 0:
         st.error("❌ Ingresa un monto válido mayor a 0")
     else:
+   #     try:
         try:
-            st.info("⌛ Generando QR, espera un momento...")
-            r = requests.post(f"{BACKEND_URL}/crear_qr", json={"monto": monto})
-            
-            # Mostrar status code y texto crudo para depuración
-            st.write("Status code:", r.status_code)
-            st.write("Respuesta cruda:", r.text)
-
-            r.raise_for_status()  # Esto lanza error si status != 200
-            data = r.json()
-            
-            # Validar que el backend devuelva lo que esperamos
-            init_point = data.get("init_point")
-            ref = data.get("external_reference")
-            
-            if init_point and ref:
-                st.session_state["init_point"] = init_point
-                st.session_state["ref"] = ref
-                st.success("✅ QR generado correctamente")
-                st.write("Init Point:", init_point)
-                st.write("Referencia externa:", ref)
+            r = requests.get(
+                f"{BACKEND_URL}/estado/{st.session_state['ref']}",
+                timeout=5
+            )
+        
+            if r.status_code != 200:
+                st.info("⏳ Esperando confirmación del pago...")
             else:
-                st.error("❌ El backend no devolvió 'init_point' o 'external_reference'.")
-                st.write("JSON recibido:", data)
+                estado = r.json()
+                status = estado.get("status", "pending")
+        
+                if status == "approved":
+                    st.success("✅ PAGO APROBADO")
+                    st.code(f"Transacción: {estado.get('transaction_id')}")
+        
+                elif status == "rejected":
+                    st.error("❌ PAGO RECHAZADO")
+                else:
+                    st.info("⏳ Esperando pago...")
 
-        except requests.exceptions.RequestException as e:
-            st.error(f"❌ Error generando QR: {e}")
-            if r is not None:
-                st.write("Respuesta cruda:", r.text)
-        except Exception as e:
-            st.error(f"❌ Error inesperado: {e}")
+except Exception as e:
+    st.error(f"❌ Error consultando estado: {e}")
+
 
 # -------------------------
 # Auto-refresh cada 3 segundos
