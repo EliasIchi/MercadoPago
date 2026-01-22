@@ -9,8 +9,9 @@ jobs:
   wake:
     runs-on: ubuntu-latest
     steps:
+
       - name: Wake Streamlit
         run: |
           echo "Waking Streamlit app..."
-          curl -L -s https://mercadopago-donelio.streamlit.app/ > /dev/null
+          curl -L -s https://mercadopago-donelio.streamlit.app/ || true
           echo "Done"
