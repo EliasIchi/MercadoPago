@@ -18,7 +18,9 @@ for key in ["init_point", "ref", "monto"]:
 # Monto
 # -------------------------
 monto = st.number_input("Monto a cobrar", min_value=1, step=100, format="%d")
-st.session_state["monto"] = monto
+
+
+
 
 # -------------------------
 # Generar QR
@@ -51,7 +53,12 @@ if st.session_state["ref"]:
 # Mostrar QR + estado
 # -------------------------
 if st.session_state["init_point"]:
+
     st.subheader("Escaneá para pagar")
+
+    st.markdown(
+        f"### 💲 **Monto a pagar: ${st.session_state['monto']:,}**"
+    )
 
     qr_url = (
         "https://api.qrserver.com/v1/create-qr-code/"
