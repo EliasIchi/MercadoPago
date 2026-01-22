@@ -2,7 +2,8 @@ name: Wake Streamlit App
 
 on:
   schedule:
-    - cron: "0 3,12,18,22 * * *"
+    - cron: '0 */4 * * *'
+ //   - cron: "0 3,12,18,22 * * *"
   workflow_dispatch:
 
 jobs:
