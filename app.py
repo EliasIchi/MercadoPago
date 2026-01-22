@@ -89,12 +89,19 @@ if st.session_state["init_point"]:
 
             if status == "approved":
                 st.success("✅ PAGO APROBADO")
-        #        st.code(f"Transacción: {estado.get('transaction_id')}")
-                st.success("✅ PAGO APROBADO")
-                
-                if st.button("🔊 Confirmar cobro"):
+                st.markdown(f"## 💰 Monto aprobado: ${st.session_state['monto']:,}")
+            
+                # reproducir sonido una sola vez
+                if not st.session_state["sonido_ok"]:
                     with open("cash.wav", "rb") as audio_file:
                         st.audio(audio_file.read(), format="audio/wav")
+                    st.session_state["sonido_ok"] = True
+            
+                # detener polling
+                st.stop()
+
+
+
             
                 if not st.session_state["sonido_ok"]:
                     with open("cash.wav", "rb") as audio_file:
