@@ -68,10 +68,19 @@ if st.session_state["init_point"]:
         if r.status_code == 200:
             estado = r.json()
             status = estado.get("status", "pending")
-        
+
             if status == "approved":
                 st.success("✅ PAGO APROBADO")
                 st.code(f"Transacción: {estado.get('transaction_id')}")
+            
+                if not st.session_state["sonido_ok"]:
+                    audio_file = open("cash.wav", "rb")
+                    st.audio(audio_file.read(), format="audio/wav")
+                    st.session_state["sonido_ok"] = True
+        
+    #        if status == "approved":
+   #             st.success("✅ PAGO APROBADO")
+   #             st.code(f"Transacción: {estado.get('transaction_id')}")
             elif status == "rejected":
                 st.error("❌ PAGO RECHAZADO")
             else:
