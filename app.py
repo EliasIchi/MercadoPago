@@ -2,15 +2,13 @@ import streamlit as st
 import requests
 from streamlit_autorefresh import st_autorefresh
 
-# -------------------------
-# Config
-# -------------------------
 BACKEND_URL = "https://mp-backend-4l3x.onrender.com"
+
 st.set_page_config(page_title="Cobro con QR", layout="centered")
-st.title("📲 Cobro con QR Mercado Pago", anchor=None)
+st.title("📲 Cobro con QR Mercado Pago")
 
 # -------------------------
-# Session state inicial
+# Session state
 # -------------------------
 for key in ["init_point", "ref", "monto", "sonido_ok", "pago_realizado"]:
     if key not in st.session_state:
@@ -29,9 +27,9 @@ for key in ["init_point", "ref", "monto", "sonido_ok", "pago_realizado"]:
 def nuevo_cobro():
     st.session_state["init_point"] = None
     st.session_state["ref"] = None
-    st.session_state["monto"] = 0
     st.session_state["sonido_ok"] = False
     st.session_state["pago_realizado"] = False
+    st.session_state["monto"] = 0
 
 # -------------------------
 # Input de monto y generar QR
@@ -127,8 +125,6 @@ if st.session_state["ref"] and not st.session_state["pago_realizado"]:
                         st.session_state["sonido_ok"] = True
                     except:
                         pass
-
-                st.stop()
 
             elif status == "rejected":
                 st.session_state["init_point"] = None
