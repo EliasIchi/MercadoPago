@@ -36,6 +36,9 @@ st.session_state["monto"] = monto
 # -------------------------
 # Generar QR
 # -------------------------
+# -------------------------
+# Generar QR
+# -------------------------
 if st.button("Generar QR"):
     if monto <= 0:
         st.error("❌ Monto inválido")
@@ -45,7 +48,6 @@ if st.button("Generar QR"):
             json={"monto": monto},
             timeout=5
         )
-
         if r.status_code == 200:
             data = r.json()
             st.session_state["init_point"] = data["init_point"]
@@ -64,12 +66,8 @@ if st.session_state["ref"]:
 # Mostrar QR + estado
 # -------------------------
 if st.session_state["init_point"]:
-
     st.subheader("Escaneá para pagar")
-
-    st.markdown(
-    f"### 💲 **Monto a pagar: ${int(st.session_state['monto']):,}**"
-    )
+    st.markdown(f"### 💲 Monto a pagar: ${st.session_state['monto']:,}")
 
     qr_url = (
         "https://api.qrserver.com/v1/create-qr-code/"
@@ -77,50 +75,70 @@ if st.session_state["init_point"]:
     )
     st.image(qr_url)
 
+    # -------------------------
+    # Chequear estado del pago
+    # -------------------------
     try:
         r = requests.get(
             f"{BACKEND_URL}/estado_qr/{st.session_state['ref']}",
             timeout=5
         )
-        
         if r.status_code == 200:
             estado = r.json()
             status = estado.get("status", "pending")
 
             if status == "approved":
-                st.success("✅ PAGO APROBADO")
-                st.markdown(f"## 💰 Monto aprobado: ${st.session_state['monto']:,}")
-            
-                # reproducir sonido una sola vez
-                if not st.session_state["sonido_ok"]:
-                    with open("cash.wav", "rb") as audio_file:
-                        st.audio(audio_file.read(), format="audio/wav")
-                    st.session_state["sonido_ok"] = True
-            
-                # detener polling
+                # Detener autorefresh
                 st.stop()
 
+                # Pantalla verde gigante para alertar pago aprobado
+                st.markdown(
+                    f"""
+                    <div style="
+                        background-color:#4CAF50;
+                        color:white;
+                        font-size:50px;
+                        text-align:center;
+                        padding:50px;
+                        border-radius:20px;
+                    ">
+                        ✅ PAGO APROBADO<br>
+                        💰 Monto: ${st.session_state['monto']:,}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-
-            
+                # 🔊 Sonido para PC
                 if not st.session_state["sonido_ok"]:
-                    with open("cash.wav", "rb") as audio_file:
-                        st.audio(audio_file.read(), format="audio/wav")
-                    st.session_state["sonido_ok"] = True
-            
-                # 🔴 detener polling
-                st.stop()
+                    try:
+                        with open("cash.wav", "rb") as f:
+                            st.audio(f.read(), format="audio/wav")
+                        st.session_state["sonido_ok"] = True
+                    except:
+                        pass  # si es móvil no pasa nada
 
-
-        
-    #        if status == "approved":
-   #             st.success("✅ PAGO APROBADO")
-   #             st.code(f"Transacción: {estado.get('transaction_id')}")
             elif status == "rejected":
-                st.error("❌ PAGO RECHAZADO")
+                st.markdown(
+                    """
+                    <div style="
+                        background-color:#f44336;
+                        color:white;
+                        font-size:50px;
+                        text-align:center;
+                        padding:50px;
+                        border-radius:20px;
+                    ">
+                        ❌ PAGO RECHAZADO
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
             else:
                 st.info("⏳ Esperando pago...")
+
         else:
             st.info("⏳ Esperando confirmación...")
+
     except Exception as e:
         st.warning("⏳ Aún no hay confirmación del pago")
