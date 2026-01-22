@@ -10,14 +10,25 @@ st.title("📲 Cobro con QR Mercado Pago")
 # -------------------------
 # Session state
 # -------------------------
-for key in ["init_point", "ref", "monto"]:
-    if key not in st.session_state:
-        st.session_state[key] = None
+if "init_point" not in st.session_state:
+    st.session_state["init_point"] = None
+
+if "ref" not in st.session_state:
+    st.session_state["ref"] = None
+
+if "monto" not in st.session_state:
+    st.session_state["monto"] = 0
+
+if "sonido_ok" not in st.session_state:
+    st.session_state["sonido_ok"] = False
 
 # -------------------------
 # Monto
 # -------------------------
+# Monto
 monto = st.number_input("Monto a cobrar", min_value=1, step=100, format="%d")
+st.session_state["monto"] = monto
+
 
 
 
@@ -57,7 +68,7 @@ if st.session_state["init_point"]:
     st.subheader("Escaneá para pagar")
 
     st.markdown(
-        f"### 💲 **Monto a pagar: ${st.session_state['monto']:,}**"
+    f"### 💲 **Monto a pagar: ${int(st.session_state['monto']):,}**"
     )
 
     qr_url = (
