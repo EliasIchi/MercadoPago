@@ -51,13 +51,25 @@ if st.session_state["ref"]:
 # Mostrar QR + estado
 # -------------------------
 if st.session_state["init_point"]:
-    st.subheader("Escaneá para pagar")
+    # Monto grande centrado
+    st.markdown(
+        f"""
+        <div style="text-align:center; font-size:32px; margin-bottom:20px;">
+            💲 Monto a pagar: ${st.session_state['monto']:,}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
+    # QR centrado
     qr_url = (
         "https://api.qrserver.com/v1/create-qr-code/"
         f"?size=300x300&data={st.session_state['init_point']}"
     )
-    st.image(qr_url)
+    st.markdown(
+        f'<div style="text-align:center;"><img src="{qr_url}"></div>',
+        unsafe_allow_html=True
+    )
 
     try:
         r = requests.get(
@@ -70,10 +82,43 @@ if st.session_state["init_point"]:
             status = estado.get("status", "pending")
         
             if status == "approved":
-                st.success("✅ PAGO APROBADO")
-                st.code(f"Transacción: {estado.get('transaction_id')}")
+                # Pago aprobado grande y centrado
+                st.markdown(
+                    f"""
+                    <div style="
+                        text-align:center;
+                        background-color:#4CAF50;
+                        color:white;
+                        font-size:50px;
+                        padding:50px;
+                        border-radius:20px;
+                        margin-top:30px;
+                    ">
+                        ✅ PAGO APROBADO<br>
+                        💰 Monto: ${st.session_state['monto']:,}<br>
+                        🆔 Ref: {estado.get('transaction_id')}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
             elif status == "rejected":
-                st.error("❌ PAGO RECHAZADO")
+                st.markdown(
+                    f"""
+                    <div style="
+                        text-align:center;
+                        background-color:#f44336;
+                        color:white;
+                        font-size:50px;
+                        padding:50px;
+                        border-radius:20px;
+                        margin-top:30px;
+                    ">
+                        ❌ PAGO RECHAZADO<br>
+                        🆔 Ref: {estado.get('transaction_id')}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
             else:
                 st.info("⏳ Esperando pago...")
         else:
