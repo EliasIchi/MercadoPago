@@ -113,7 +113,7 @@ async def webhook(request: Request):
 def sync_mp_all():
     try:
         result = sdk.payment().search({
-            "limit": 50,
+            "limit": 5,
             "sort": "date_created",
             "criteria": "desc"
         })
