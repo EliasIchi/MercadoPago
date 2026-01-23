@@ -110,11 +110,15 @@ async def webhook(request: Request):
 # SYNC TOTAL MP (SIN FILTROS)
 # =============================
 @app.get("/sync_mp_all")
-def sync_mp_all():
+def sync_mp_all(limit: int = 200):
+    """
+    Trae TODOS los pagos recientes de MP (limit configurable) y los guarda
+    en memoria (o DB luego) sin filtrar status ni tipo.
+    """
     try:
-        # traer muchos pagos para no perder ninguno
+        # Traer pagos de MP usando el SDK
         result = sdk.payment().search({
-            "limit": 10,   # aumentar límite
+            "limit": limit,
             "sort": "date_created",
             "criteria": "desc"
         })
@@ -125,9 +129,15 @@ def sync_mp_all():
             payment_id = str(pago["id"])
 
             if payment_id in pagos:
+                # Si ya existe, actualizar status y full_info
+                pagos[payment_id]["status"] = pago.get("status")
+                pagos[payment_id]["monto"] = pago.get("transaction_amount")
+                pagos[payment_id]["tipo"] = pago.get("payment_type_id")
+                pagos[payment_id]["referencia"] = pago.get("external_reference") or payment_id
+                pagos[payment_id]["full_info"] = pago
                 continue
 
-            # Guardar todos los pagos sin filtrar por tipo
+            # Guardar pago completo en memoria
             pagos[payment_id] = normalizar_pago(pago, origen="sync")
             nuevos.append(pagos[payment_id])
 
