@@ -110,7 +110,7 @@ async def webhook(request: Request):
 # SYNC TOTAL MP (SIN FILTROS)
 # =============================
 @app.get("/sync_mp_all")
-def sync_mp_all(limit: int = 200):
+def sync_mp_all(limit: int = 1):
     """
     Trae TODOS los pagos recientes de MP (limit configurable) y los guarda
     en memoria (o DB luego) sin filtrar status ni tipo.
