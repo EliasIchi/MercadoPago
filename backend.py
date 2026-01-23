@@ -112,8 +112,9 @@ async def webhook(request: Request):
 @app.get("/sync_mp_all")
 def sync_mp_all():
     try:
+        # traer muchos pagos para no perder ninguno
         result = sdk.payment().search({
-            "limit": 5,
+            "limit": 10,   # aumentar límite
             "sort": "date_created",
             "criteria": "desc"
         })
@@ -126,10 +127,8 @@ def sync_mp_all():
             if payment_id in pagos:
                 continue
 
-            pagos[payment_id] = normalizar_pago(
-                pago,
-                origen="sync"
-            )
+            # Guardar todos los pagos sin filtrar por tipo
+            pagos[payment_id] = normalizar_pago(pago, origen="sync")
             nuevos.append(pagos[payment_id])
 
         print(f"🔄 Sync MP OK – {len(nuevos)} nuevos")
@@ -138,6 +137,7 @@ def sync_mp_all():
     except Exception as e:
         print("❌ Sync MP error:", e)
         return {"error": str(e)}
+
 
 # =============================
 # DEVOLVER TODOS LOS PAGOS
